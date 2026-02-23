@@ -2,6 +2,8 @@
 
 Analyze pull request metrics comparing PRs with Copilot Code Review (CCR) versus those without.
 
+Uses GitHub's GraphQL search API to efficiently query all PRs across an organization in a single search, avoiding the need to list and query each repository individually. This dramatically reduces API calls for large orgs.
+
 ## Setup
 
 ### 1. Prerequisites
@@ -55,15 +57,22 @@ GITHUB_REPO=your-repo-name
 Run the script to fetch data and generate CSV:
 
 ```bash
-# Using .env configuration
-python src/fetch_pr_data.py
+# Fetch all PRs across an organization (default)
+python src/fetch_pr_data.py --owner myorg
 
-# Or with CLI arguments
-python src/fetch_pr_data.py --owner microsoft --repo vscode --output data/prs.csv
+# Fetch PRs from a single repository
+python src/fetch_pr_data.py --owner myorg --repo myrepo
 
 # Filter by date range
-python src/fetch_pr_data.py --start-date 2025-01-01 --end-date 2025-12-31
+python src/fetch_pr_data.py --owner myorg --start-date 2025-01-01 --end-date 2025-12-31
+
+# Custom output path
+python src/fetch_pr_data.py --owner myorg --output data/custom.csv
 ```
+
+> **Note:** GitHub search returns a maximum of 1,000 results per query. For large
+> orgs exceeding this limit, the script automatically splits searches into monthly
+> date ranges.
 
 ### Output
 
@@ -122,13 +131,17 @@ Error: GITHUB_TOKEN environment variable not set
 ```
 Error: HTTP 403
 ```
-**Solution**: Wait or use token with higher rate limit. GraphQL allows 5,000 points/hour.
+**Solution**: The script automatically retries after 60 seconds when rate-limited. GraphQL allows 5,000 points/hour.
+
+### Over 1,000 Results
+GitHub search limits results to 1,000 per query. The script handles this automatically by splitting into monthly date ranges. You can also use `--start-date` and `--end-date` to narrow your search.
 
 ### No Data Returned
 **Check**:
-- Repository name and owner are correct
-- Token has access to the repository
-- Repository has closed/merged PRs
+- Organization name and owner are correct
+- Token has access to the repositories
+- Repositories have closed/merged PRs
+- Search query syntax is valid (check console output for the generated query)
 
 ## Project Structure
 
