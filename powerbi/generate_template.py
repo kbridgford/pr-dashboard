@@ -122,9 +122,13 @@ def _visual_id(name: str) -> str:
     return hashlib.md5(name.encode()).hexdigest()[:20]
 
 
-def _utf16le_bom(text: str) -> bytes:
-    """Encode text as UTF-16 LE with BOM (required by .pbit format)."""
-    return b"\xff\xfe" + text.encode("utf-16-le")
+def _utf16le(text: str) -> bytes:
+    """Encode text as UTF-16 LE without BOM.
+
+    Power BI reads OPC parts as UTF-16 LE but does not strip the BOM,
+    so including it corrupts parsing (version string, JSON, etc.).
+    """
+    return text.encode("utf-16-le")
 
 
 def _pbi_literal(value: str) -> dict:
@@ -653,36 +657,35 @@ def generate_pbit(output_path: str, variant: str = "full") -> None:
         # [Content_Types].xml — UTF-8 XML
         zf.writestr("[Content_Types].xml", _content_types_xml())
 
-        # Version — UTF-16 LE without BOM (PBI parses this as raw UTF-16 LE
-        # but does not strip the BOM, so including it corrupts the version string)
-        zf.writestr("Version", "1.0".encode("utf-16-le"))
+        # Version — UTF-16 LE (no BOM)
+        zf.writestr("Version", _utf16le("1.0"))
 
-        # DataModelSchema — UTF-16 LE with BOM
+        # DataModelSchema — UTF-16 LE (no BOM)
         schema = json.dumps(_data_model_schema(), ensure_ascii=False)
-        zf.writestr("DataModelSchema", _utf16le_bom(schema))
+        zf.writestr("DataModelSchema", _utf16le(schema))
 
-        # Report/Layout — UTF-16 LE with BOM
+        # Report/Layout — UTF-16 LE (no BOM)
         layout = json.dumps(_report_layout(variant), ensure_ascii=False)
-        zf.writestr("Report/Layout", _utf16le_bom(layout))
+        zf.writestr("Report/Layout", _utf16le(layout))
 
-        # Settings — UTF-16 LE with BOM
-        zf.writestr("Settings", _utf16le_bom(json.dumps({})))
+        # Settings — UTF-16 LE (no BOM)
+        zf.writestr("Settings", _utf16le(json.dumps({})))
 
-        # Metadata — UTF-16 LE with BOM
+        # Metadata — UTF-16 LE (no BOM)
         metadata = json.dumps({"version": "1.0", "type": 2})
-        zf.writestr("Metadata", _utf16le_bom(metadata))
+        zf.writestr("Metadata", _utf16le(metadata))
 
-        # DiagramLayout — UTF-16 LE with BOM
+        # DiagramLayout — UTF-16 LE (no BOM)
         diagram = json.dumps({
             "version": "1.0",
             "pages": [],
             "scrollPosition": {"x": 0, "y": 0},
         })
-        zf.writestr("DiagramLayout", _utf16le_bom(diagram))
+        zf.writestr("DiagramLayout", _utf16le(diagram))
 
-        # Connections — UTF-16 LE with BOM
+        # Connections — UTF-16 LE (no BOM)
         conns = json.dumps({"Version": 1, "Connections": []})
-        zf.writestr("Connections", _utf16le_bom(conns))
+        zf.writestr("Connections", _utf16le(conns))
 
     size_kb = os.path.getsize(output_path) / 1024
     print(f"Generated: {output_path} ({size_kb:.1f} KB)")
