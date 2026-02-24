@@ -1,0 +1,112 @@
+# ============================================================================
+# Scheduled PR Data Refresh
+# ============================================================================
+# This workflow runs the data collection script on a weekly schedule and
+# uploads the resulting CSV to Azure Blob Storage (or as a workflow artifact).
+#
+# Setup:
+#   1. Add these secrets to your repository (Settings → Secrets → Actions):
+#      - GITHUB_TOKEN_PAT: GitHub PAT with 'repo' scope (not the built-in GITHUB_TOKEN)
+#      - AZURE_STORAGE_CONNECTION_STRING: (optional) Azure Blob Storage connection string
+#
+#   2. Update the environment variables below with your org name
+#
+#   3. Enable the workflow (Actions → refresh-data → Enable workflow)
+# ============================================================================
+
+name: Refresh PR Data
+
+on:
+  # Run weekly on Monday at 6am UTC
+  schedule:
+    - cron: "0 6 * * 1"
+
+  # Allow manual trigger from the Actions tab
+  workflow_dispatch:
+    inputs:
+      owner:
+        description: "GitHub organization name"
+        required: true
+      start_date:
+        description: "Start date filter (YYYY-MM-DD, optional)"
+        required: false
+      end_date:
+        description: "End date filter (YYYY-MM-DD, optional)"
+        required: false
+
+env:
+  # Default organization to scan — override via workflow_dispatch inputs
+  DEFAULT_OWNER: "your-org-name"
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  fetch-pr-data:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Determine parameters
+        id: params
+        run: |
+          # Use workflow_dispatch inputs if available, otherwise defaults
+          OWNER="${{ github.event.inputs.owner || env.DEFAULT_OWNER }}"
+          echo "owner=$OWNER" >> $GITHUB_OUTPUT
+
+          # Optional date filters
+          if [ -n "${{ github.event.inputs.start_date }}" ]; then
+            echo "start_date=--start-date ${{ github.event.inputs.start_date }}" >> $GITHUB_OUTPUT
+          else
+            echo "start_date=" >> $GITHUB_OUTPUT
+          fi
+
+          if [ -n "${{ github.event.inputs.end_date }}" ]; then
+            echo "end_date=--end-date ${{ github.event.inputs.end_date }}" >> $GITHUB_OUTPUT
+          else
+            echo "end_date=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Fetch PR data
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN_PAT }}
+        run: |
+          python src/fetch_pr_data.py \
+            --owner "${{ steps.params.outputs.owner }}" \
+            ${{ steps.params.outputs.start_date }} \
+            ${{ steps.params.outputs.end_date }} \
+            --output data/pull_requests.csv
+
+      - name: Upload CSV as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-data-${{ github.run_id }}
+          path: data/pull_requests.csv
+          retention-days: 90
+
+      # ----------------------------------------------------------------
+      # Optional: Upload to Azure Blob Storage
+      # Uncomment the step below and add AZURE_STORAGE_CONNECTION_STRING
+      # to your repository secrets.
+      # ----------------------------------------------------------------
+      # - name: Upload to Azure Blob Storage
+      #   if: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING != '' }}
+      #   uses: azure/cli@v2
+      #   with:
+      #     inlineScript: |
+      #       az storage blob upload \
+      #         --connection-string "${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
+      #         --container-name "pr-dashboard" \
+      #         --file data/pull_requests.csv \
+      #         --name "pull_requests.csv" \
+      #         --overwrite true
