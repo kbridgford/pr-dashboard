@@ -17,6 +17,8 @@ GitHub GraphQL API  →  Python Script  →  CSV  →  Power BI Dashboard
 
 ## Quick Start
 
+Download the latest release from the [Releases page](https://github.com/kbridgford/pr-dashboard/releases), or clone the repo:
+
 ```bash
 # 1. Clone and set up
 git clone https://github.com/kbridgford/pr-dashboard.git
