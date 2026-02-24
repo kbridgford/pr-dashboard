@@ -49,5 +49,8 @@ data/*.xlsx
 .DS_Store
 Thumbs.db
 
+# Backup
+backup/
+
 # Logs
 *.log

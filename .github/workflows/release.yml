@@ -55,14 +55,6 @@ jobs:
           echo "tag=$VERSION" >> $GITHUB_OUTPUT
           echo "Release version: $VERSION"
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Generate Power BI templates
-        run: python powerbi/generate_template.py
-
       - name: Create release package
         run: |
           VERSION="${{ steps.version.outputs.tag }}"
@@ -94,8 +86,6 @@ jobs:
             ### What's included
             - `src/fetch_pr_data.py` — Data collection script (GraphQL search API)
             - `src/upload_data.py` — Cloud storage upload/download (Azure Blob, S3)
-            - `powerbi/dashboard-full.pbit` — Full Power BI template (cards + charts + slicers)
-            - `powerbi/dashboard-light.pbit` — Light Power BI template (charts only)
             - `powerbi/SETUP_GUIDE.md` — Power BI dashboard build guide
             - `data/sample.csv` — Sample data for previewing
             - `.github/workflows/` — Automated refresh workflows
