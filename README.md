@@ -258,6 +258,8 @@ Upload the CSV to a SharePoint document library manually or via Power Automate. 
 
 ## Dashboard Metrics
 
+For a detailed explanation of every metric, its business impact, interpretation guidance, and analysis tips, see the **[Metrics Insights Guide](docs/METRICS_INSIGHTS.md)**.
+
 ### Charts
 - **Average Days Open by Month** — Clustered bar chart comparing with/without CCR
 - **PR Count by Month** — Clustered bar chart showing adoption over time
@@ -309,6 +311,9 @@ pr-dashboard/
 ├── .gitignore                             # Git ignore rules
 ├── COPILOT_PROMPT.md                      # Original agent prompt
 │
+├── docs/
+│   └── METRICS_INSIGHTS.md                # Metric definitions & analysis guide
+│
 ├── .github/
 │   └── workflows/
 │       └── refresh-data.yml               # Weekly automated data refresh
@@ -322,7 +327,8 @@ pr-dashboard/
 │   └── sample.csv                         # Sample data for previewing
 │
 └── powerbi/
-    └── SETUP_GUIDE.md                     # Power BI dashboard build guide
+    ├── SETUP_GUIDE.md                     # Power BI dashboard build guide
+    └── generate_template.py               # Generates .pbit templates (full & light)
 ```
 
 ## License
