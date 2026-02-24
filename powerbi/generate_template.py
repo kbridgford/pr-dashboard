@@ -653,8 +653,9 @@ def generate_pbit(output_path: str, variant: str = "full") -> None:
         # [Content_Types].xml — UTF-8 XML
         zf.writestr("[Content_Types].xml", _content_types_xml())
 
-        # Version — UTF-16 LE with BOM (PBI reads all OPC parts as UTF-16)
-        zf.writestr("Version", _utf16le_bom("1.0"))
+        # Version — UTF-16 LE without BOM (PBI parses this as raw UTF-16 LE
+        # but does not strip the BOM, so including it corrupts the version string)
+        zf.writestr("Version", "1.0".encode("utf-16-le"))
 
         # DataModelSchema — UTF-16 LE with BOM
         schema = json.dumps(_data_model_schema(), ensure_ascii=False)
