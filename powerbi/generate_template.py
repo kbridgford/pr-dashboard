@@ -2,17 +2,22 @@
 """
 Power BI Template (.pbit) Generator
 
-Generates a Power BI Template file for the Copilot Code Review Impact Dashboard.
-The template includes a parameterized CSV data source, data model with all 26
-columns, DAX measures, a calculated "Review Type" column, and a pre-built
-report page with KPI cards, clustered column charts, and slicers.
+Generates Power BI Template (.pbit) files for the Copilot Code Review Impact
+Dashboard in two variants:
+
+  - Full:  KPI cards, clustered column charts, and slicers (dashboard-full.pbit)
+  - Light: Just the two clustered column charts (dashboard-light.pbit)
+
+Both include a parameterized CSV data source, the full data model with all 26
+columns, DAX measures, and a calculated "Review Type" column.
 
 When opened in Power BI Desktop, the user is prompted for the CSV file path
 (defaults to data/pull_requests.csv), and the dashboard is ready to use.
 
 Usage:
-    python powerbi/generate_template.py
-    python powerbi/generate_template.py --output path/to/dashboard.pbit
+    python powerbi/generate_template.py            # generates both templates
+    python powerbi/generate_template.py --full      # full template only
+    python powerbi/generate_template.py --light     # light template only
 """
 
 import json
@@ -492,13 +497,12 @@ def _slicer_visual(name, title, column, x, y, w, h, z=0):
 
 
 # ============================================================================
-# .pbit Component: Report/Layout — full layout
+# .pbit Component: Report/Layout — visual sets
 # ============================================================================
 
-def _report_layout() -> dict:
-    """Assemble the complete report layout with one dashboard page."""
-
-    visuals = [
+def _full_visuals() -> list:
+    """All visuals: KPI cards + column charts + slicers."""
+    return [
         # ---- KPI cards (top row, y=15, h=100) ----
         _card_visual(
             "card_total_prs", "Total PRs", "Total PRs",
@@ -540,6 +544,38 @@ def _report_layout() -> dict:
         ),
     ]
 
+
+def _light_visuals() -> list:
+    """Light visuals: just the two clustered column charts, centered."""
+    return [
+        _column_chart_visual(
+            "chart_days_open_light",
+            "Days PRs Stay Open (With/Without Copilot Code Review)",
+            "month_year", "days_open", 1, "Review Type",  # 1 = Average
+            x=20, y=30, w=610, h=450, z=0,
+        ),
+        _column_chart_visual(
+            "chart_pr_count_light",
+            "Number of PRs (With/Without Copilot Code Review)",
+            "month_year", "pr_number", 5, "Review Type",  # 5 = CountNonNull
+            x=650, y=30, w=610, h=450, z=1,
+        ),
+    ]
+
+
+def _report_layout(variant: str = "full") -> dict:
+    """Assemble the report layout.
+
+    Args:
+        variant: "full" (cards + charts + slicers) or "light" (charts only).
+    """
+    if variant == "light":
+        visuals = _light_visuals()
+        page_name = "Copilot Code Review Impact (Light)"
+    else:
+        visuals = _full_visuals()
+        page_name = "Copilot Code Review Impact"
+
     report_config = {
         "version": "5.50",
         "themeCollection": {
@@ -570,7 +606,7 @@ def _report_layout() -> dict:
             {
                 "id": 0,
                 "name": "ReportSection",
-                "displayName": "Copilot Code Review Impact",
+                "displayName": page_name,
                 "filters": "[]",
                 "ordinal": 0,
                 "config": json.dumps(page_config),
@@ -588,8 +624,13 @@ def _report_layout() -> dict:
 # .pbit Assembly
 # ============================================================================
 
-def generate_pbit(output_path: str) -> None:
-    """Create the .pbit file (ZIP archive with UTF-16 LE encoded JSON)."""
+def generate_pbit(output_path: str, variant: str = "full") -> None:
+    """Create a .pbit file (ZIP archive with UTF-16 LE encoded JSON).
+
+    Args:
+        output_path: Destination file path.
+        variant: "full" or "light" — controls which visuals are included.
+    """
 
     out_dir = os.path.dirname(output_path)
     if out_dir:
@@ -607,7 +648,7 @@ def generate_pbit(output_path: str) -> None:
         zf.writestr("DataModelSchema", _utf16le_bom(schema))
 
         # Report/Layout — UTF-16 LE with BOM
-        layout = json.dumps(_report_layout(), ensure_ascii=False)
+        layout = json.dumps(_report_layout(variant), ensure_ascii=False)
         zf.writestr("Report/Layout", _utf16le_bom(layout))
 
         # Settings — UTF-16 LE with BOM
@@ -639,20 +680,40 @@ def generate_pbit(output_path: str) -> None:
 
 def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    default_output = os.path.join(script_dir, "dashboard.pbit")
 
     parser = argparse.ArgumentParser(
-        description="Generate a Power BI Template (.pbit) for the PR Dashboard"
+        description="Generate Power BI Template (.pbit) files for the PR Dashboard"
     )
     parser.add_argument(
-        "--output", "-o",
-        default=default_output,
-        help="Output path for the .pbit file (default: powerbi/dashboard.pbit)",
+        "--output-dir", "-d",
+        default=script_dir,
+        help="Output directory for .pbit files (default: powerbi/)",
+    )
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
+        "--full", action="store_true",
+        help="Generate only the full template (cards + charts + slicers)",
+    )
+    group.add_argument(
+        "--light", action="store_true",
+        help="Generate only the light template (charts only)",
     )
     args = parser.parse_args()
 
-    generate_pbit(args.output)
-    print("Open this file in Power BI Desktop to use the template.")
+    # Determine which variants to generate (default: both)
+    variants = []
+    if args.full:
+        variants = ["full"]
+    elif args.light:
+        variants = ["light"]
+    else:
+        variants = ["full", "light"]
+
+    for variant in variants:
+        output_path = os.path.join(args.output_dir, f"dashboard-{variant}.pbit")
+        generate_pbit(output_path, variant)
+
+    print("Open a .pbit file in Power BI Desktop to use the template.")
     print("You will be prompted to enter the path to your CSV data file.")
 
 
