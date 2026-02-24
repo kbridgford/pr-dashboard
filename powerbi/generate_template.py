@@ -668,24 +668,24 @@ def generate_pbit(output_path: str, variant: str = "full") -> None:
         layout = json.dumps(_report_layout(variant), ensure_ascii=False)
         zf.writestr("Report/Layout", _utf16le(layout))
 
-        # Settings — UTF-16 LE (no BOM)
-        zf.writestr("Settings", _utf16le(json.dumps({})))
+        # Settings — UTF-8 (PBI reads these via standard JSON deserializer)
+        zf.writestr("Settings", json.dumps({}).encode("utf-8"))
 
-        # Metadata — UTF-16 LE (no BOM)
+        # Metadata — UTF-8
         metadata = json.dumps({"version": "1.0", "type": 2})
-        zf.writestr("Metadata", _utf16le(metadata))
+        zf.writestr("Metadata", metadata.encode("utf-8"))
 
-        # DiagramLayout — UTF-16 LE (no BOM)
+        # DiagramLayout — UTF-8
         diagram = json.dumps({
             "version": "1.0",
             "pages": [],
             "scrollPosition": {"x": 0, "y": 0},
         })
-        zf.writestr("DiagramLayout", _utf16le(diagram))
+        zf.writestr("DiagramLayout", diagram.encode("utf-8"))
 
-        # Connections — UTF-16 LE (no BOM)
+        # Connections — UTF-8
         conns = json.dumps({"Version": 1, "Connections": []})
-        zf.writestr("Connections", _utf16le(conns))
+        zf.writestr("Connections", conns.encode("utf-8"))
 
     size_kb = os.path.getsize(output_path) / 1024
     print(f"Generated: {output_path} ({size_kb:.1f} KB)")
