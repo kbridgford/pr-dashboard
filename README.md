@@ -100,14 +100,51 @@ python src/fetch_pr_data.py --owner myorg --output data/custom.csv
 > **Note:** GitHub search limits results to 1,000 per query. The script automatically
 > splits into monthly date ranges when this limit is reached.
 
-### Upload to Cloud Storage (Optional)
+### Incremental Updates (Merge-and-Replace)
+
+Use `--merge` to fetch recent PRs and upsert them into your existing CSV. This avoids re-fetching your entire history on every run:
 
 ```bash
-# Azure Blob Storage
+# Fetch last 30 days and merge into existing data
+python src/fetch_pr_data.py --owner myorg --start-date 2026-01-25 --merge
+
+# Same, but save a timestamped snapshot before overwriting
+python src/fetch_pr_data.py --owner myorg --start-date 2026-01-25 --merge --snapshot
+```
+
+**How it works:**
+- Loads existing `data/pull_requests.csv`
+- Fetches new PRs from GitHub (scoped by `--start-date`)
+- Upserts by `(pr_number, repository)` — new data wins, so PRs that were open last week but merged this week get updated
+- Writes the deduplicated result back to the same file
+- `--snapshot` saves a backup at `data/snapshots/pull_requests_YYYY-MM-DD.csv` before overwriting
+
+### Upload / Download Cloud Storage
+
+```bash
+# Upload to Azure Blob Storage
 python src/upload_data.py --provider azure --file data/pull_requests.csv
 
-# AWS S3
+# Download from Azure (before a merge run)
+python src/upload_data.py --provider azure --download --file data/pull_requests.csv
+
+# Upload to AWS S3
 python src/upload_data.py --provider s3 --file data/pull_requests.csv
+
+# Download from S3
+python src/upload_data.py --provider s3 --download --file data/pull_requests.csv
+```
+
+**Full merge-and-replace cycle (manual):**
+```bash
+# 1. Download existing data from cloud
+python src/upload_data.py --provider azure --download --file data/pull_requests.csv
+
+# 2. Fetch recent PRs and merge
+python src/fetch_pr_data.py --owner myorg --start-date 2026-01-25 --merge --snapshot
+
+# 3. Upload merged result back to cloud
+python src/upload_data.py --provider azure --file data/pull_requests.csv
 ```
 
 See [Cloud Storage Setup](#cloud-storage) for configuration details.
@@ -124,13 +161,20 @@ See [powerbi/SETUP_GUIDE.md](powerbi/SETUP_GUIDE.md) for step-by-step instructio
 
 ## Automated Data Refresh
 
-A GitHub Actions workflow runs weekly to keep data current.
+A GitHub Actions workflow runs weekly using the merge-and-replace pattern:
+1. Downloads existing CSV from cloud storage
+2. Fetches PRs from the last 30 days
+3. Merges new data into existing (upsert, no duplicates)
+4. Uploads the deduplicated CSV back to cloud storage
 
 ### Setup
 
 1. Go to your repo → **Settings** → **Secrets and variables** → **Actions**
 2. Add secret: `GITHUB_TOKEN_PAT` (your GitHub PAT with `repo` scope)
-3. Optionally add: `AZURE_STORAGE_CONNECTION_STRING` for cloud upload
+3. Set `STORAGE_PROVIDER` in the workflow to `azure`, `s3`, or `none`
+4. Add provider secrets as needed:
+   - Azure: `AZURE_STORAGE_CONNECTION_STRING`
+   - S3: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_S3_BUCKET`
 
 The workflow runs every Monday at 6:00 AM UTC and can also be triggered manually.
 
@@ -139,6 +183,7 @@ The workflow runs every Monday at 6:00 AM UTC and can also be triggered manually
 1. Go to **Actions** → **Refresh PR Data**
 2. Click **Run workflow**
 3. Optionally override: org name, start date, end date
+4. Check **Full refresh** to ignore existing data and re-fetch everything
 
 ### Workflow File
 

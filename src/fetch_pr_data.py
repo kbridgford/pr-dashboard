@@ -599,6 +599,157 @@ def process_pull_requests(prs: List[Dict]) -> List[Dict[str, Any]]:
 
 
 # ============================================================================
+# Merge and Deduplication Functions
+# ============================================================================
+
+# CSV column order — used by both load and export
+CSV_FIELDNAMES = [
+    "pr_number",
+    "repository",
+    "title",
+    "author",
+    "created_at",
+    "merged_at",
+    "closed_at",
+    "state",
+    "is_draft",
+    "days_open",
+    "has_copilot_review",
+    "month_year",
+    "reviewer_count",
+    "copilot_review_count",
+    "reviewers",
+    "merged_by",
+    "additions",
+    "deletions",
+    "changed_files",
+    "commit_count",
+    "comment_count",
+    "review_decision",
+    "labels",
+    "base_branch",
+    "head_branch",
+    "first_response_hours"
+]
+
+
+def load_existing_csv(csv_path: str) -> List[Dict[str, Any]]:
+    """
+    Load existing PR data from a CSV file
+
+    Reads the CSV and converts numeric/boolean fields back to their
+    proper Python types so they can be merged with freshly fetched data.
+
+    Args:
+        csv_path: Path to the existing CSV file
+
+    Returns:
+        List of PR records as dictionaries, or empty list if file missing
+    """
+    if not os.path.exists(csv_path):
+        return []
+
+    records = []
+    with open(csv_path, "r", newline="", encoding="utf-8") as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            # Convert types to match freshly processed data
+            row["pr_number"] = int(row.get("pr_number", 0))
+            row["days_open"] = float(row.get("days_open", 0))
+            row["has_copilot_review"] = row.get("has_copilot_review", "False") == "True"
+            row["is_draft"] = row.get("is_draft", "False") == "True"
+            row["reviewer_count"] = int(row.get("reviewer_count", 0))
+            row["copilot_review_count"] = int(row.get("copilot_review_count", 0))
+            row["additions"] = int(row.get("additions", 0))
+            row["deletions"] = int(row.get("deletions", 0))
+            row["changed_files"] = int(row.get("changed_files", 0))
+            row["commit_count"] = int(row.get("commit_count", 0))
+            row["comment_count"] = int(row.get("comment_count", 0))
+            # first_response_hours may be empty string
+            frh = row.get("first_response_hours", "")
+            row["first_response_hours"] = float(frh) if frh else ""
+            records.append(row)
+
+    print(f"✓ Loaded {len(records)} existing PRs from {csv_path}")
+    return records
+
+
+def merge_data(
+    existing: List[Dict[str, Any]],
+    new: List[Dict[str, Any]]
+) -> List[Dict[str, Any]]:
+    """
+    Merge new PR data into existing data, deduplicating by (pr_number, repository)
+
+    For PRs that appear in both datasets, the new data wins — this handles
+    cases where a PR was previously fetched as OPEN but has since been
+    MERGED or received new reviews.
+
+    Args:
+        existing: Previously collected PR records
+        new: Freshly fetched PR records
+
+    Returns:
+        Deduplicated merged list sorted by created_at descending
+    """
+    # Build a dict keyed by (pr_number, repository) — existing first, then
+    # overwrite with new data so fresh results always win
+    merged = {}
+    for record in existing:
+        key = (record["pr_number"], record["repository"])
+        merged[key] = record
+
+    updated = 0
+    added = 0
+    for record in new:
+        key = (record["pr_number"], record["repository"])
+        if key in merged:
+            updated += 1
+        else:
+            added += 1
+        merged[key] = record
+
+    # Sort by created_at descending (newest first)
+    result = sorted(
+        merged.values(),
+        key=lambda r: r.get("created_at", ""),
+        reverse=True
+    )
+
+    print(f"✓ Merge complete: {added} new, {updated} updated, {len(result)} total")
+    return result
+
+
+def save_snapshot(csv_path: str) -> Optional[str]:
+    """
+    Save a timestamped snapshot of the existing CSV before overwriting
+
+    Snapshots are saved alongside the original file in a 'snapshots'
+    subdirectory with a date-stamped filename.
+
+    Args:
+        csv_path: Path to the existing CSV file
+
+    Returns:
+        Path to the snapshot file, or None if no existing file to snapshot
+    """
+    if not os.path.exists(csv_path):
+        return None
+
+    import shutil
+    snapshot_dir = os.path.join(os.path.dirname(csv_path), "snapshots")
+    os.makedirs(snapshot_dir, exist_ok=True)
+
+    timestamp = datetime.now().strftime("%Y-%m-%d")
+    base = os.path.splitext(os.path.basename(csv_path))[0]
+    snapshot_path = os.path.join(snapshot_dir, f"{base}_{timestamp}.csv")
+
+    shutil.copy2(csv_path, snapshot_path)
+    print(f"✓ Snapshot saved: {snapshot_path}")
+    return snapshot_path
+
+
+# ============================================================================
 # Export and Summary Functions
 # ============================================================================
 
@@ -620,39 +771,9 @@ def export_to_csv(data: List[Dict[str, Any]], output_path: str) -> None:
     # Ensure output directory exists
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
-    # Define the column order for the CSV
-    fieldnames = [
-        "pr_number",
-        "repository",
-        "title",
-        "author",
-        "created_at",
-        "merged_at",
-        "closed_at",
-        "state",
-        "is_draft",
-        "days_open",
-        "has_copilot_review",
-        "month_year",
-        "reviewer_count",
-        "copilot_review_count",
-        "reviewers",
-        "merged_by",
-        "additions",
-        "deletions",
-        "changed_files",
-        "commit_count",
-        "comment_count",
-        "review_decision",
-        "labels",
-        "base_branch",
-        "head_branch",
-        "first_response_hours"
-    ]
-
     # Write the CSV file
     with open(output_path, "w", newline="", encoding="utf-8") as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer = csv.DictWriter(csvfile, fieldnames=CSV_FIELDNAMES)
         writer.writeheader()  # Write column headers
         writer.writerows(data)  # Write all PR records
 
@@ -767,6 +888,16 @@ def main():
         "--end-date",
         help="Filter PRs created before this date (YYYY-MM-DD)"
     )
+    parser.add_argument(
+        "--merge",
+        action="store_true",
+        help="Merge new results into existing CSV (upsert by pr_number + repository)"
+    )
+    parser.add_argument(
+        "--snapshot",
+        action="store_true",
+        help="Save a timestamped backup before overwriting (used with --merge)"
+    )
 
     args = parser.parse_args()
 
@@ -794,6 +925,15 @@ def main():
 
     # Process raw PR data and export to CSV
     all_processed_data = process_pull_requests(prs)
+
+    # Merge with existing data if --merge flag is set
+    if args.merge:
+        # Optionally save a snapshot before overwriting
+        if args.snapshot:
+            save_snapshot(args.output)
+
+        existing_data = load_existing_csv(args.output)
+        all_processed_data = merge_data(existing_data, all_processed_data)
 
     export_to_csv(all_processed_data, args.output)
 

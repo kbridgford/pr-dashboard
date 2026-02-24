@@ -1,17 +1,28 @@
 # ============================================================================
-# Scheduled PR Data Refresh
+# Scheduled PR Data Refresh (Merge-and-Replace)
 # ============================================================================
-# This workflow runs the data collection script on a weekly schedule and
-# uploads the resulting CSV to Azure Blob Storage (or as a workflow artifact).
+# This workflow fetches recent PR data, merges it with the existing dataset
+# (deduplicating by pr_number + repository), and uploads the result to
+# cloud storage.
+#
+# Flow:
+#   1. Download existing CSV from cloud storage (if it exists)
+#   2. Fetch new PRs from the last 30 days (or custom date range)
+#   3. Merge: new data overwrites existing records (upsert)
+#   4. Upload the deduplicated CSV back to cloud storage
+#   5. Save the CSV as a workflow artifact for auditing
 #
 # Setup:
 #   1. Add these secrets to your repository (Settings → Secrets → Actions):
-#      - GITHUB_TOKEN_PAT: GitHub PAT with 'repo' scope (not the built-in GITHUB_TOKEN)
-#      - AZURE_STORAGE_CONNECTION_STRING: (optional) Azure Blob Storage connection string
+#      - GITHUB_TOKEN_PAT: GitHub PAT with 'repo' scope
+#      - AZURE_STORAGE_CONNECTION_STRING: (optional) Azure Blob Storage
+#      - AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY + AWS_S3_BUCKET: (optional) S3
 #
-#   2. Update the environment variables below with your org name
+#   2. Set STORAGE_PROVIDER to 'azure', 's3', or 'none'
 #
-#   3. Enable the workflow (Actions → refresh-data → Enable workflow)
+#   3. Update DEFAULT_OWNER with your org name
+#
+#   4. Enable the workflow (Actions → refresh-data → Enable workflow)
 # ============================================================================
 
 name: Refresh PR Data
@@ -33,11 +44,17 @@ on:
       end_date:
         description: "End date filter (YYYY-MM-DD, optional)"
         required: false
+      full_refresh:
+        description: "Full refresh (ignore existing data)"
+        type: boolean
+        default: false
 
 env:
   # Default organization to scan — override via workflow_dispatch inputs
   DEFAULT_OWNER: "your-org-name"
   PYTHON_VERSION: "3.12"
+  # Set to 'azure', 's3', or 'none' for artifact-only
+  STORAGE_PROVIDER: "none"
 
 jobs:
   fetch-pr-data:
@@ -55,7 +72,13 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          pip install -r requirements.txt
+          if [ "${{ env.STORAGE_PROVIDER }}" = "azure" ]; then
+            pip install azure-storage-blob
+          elif [ "${{ env.STORAGE_PROVIDER }}" = "s3" ]; then
+            pip install boto3
+          fi
 
       - name: Determine parameters
         id: params
@@ -64,9 +87,12 @@ jobs:
           OWNER="${{ github.event.inputs.owner || env.DEFAULT_OWNER }}"
           echo "owner=$OWNER" >> $GITHUB_OUTPUT
 
-          # Optional date filters
+          # For scheduled runs, default to last 30 days for incremental fetch
           if [ -n "${{ github.event.inputs.start_date }}" ]; then
             echo "start_date=--start-date ${{ github.event.inputs.start_date }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" = "schedule" ]; then
+            START=$(date -d '-30 days' '+%Y-%m-%d' 2>/dev/null || date -v-30d '+%Y-%m-%d')
+            echo "start_date=--start-date $START" >> $GITHUB_OUTPUT
           else
             echo "start_date=" >> $GITHUB_OUTPUT
           fi
@@ -77,7 +103,27 @@ jobs:
             echo "end_date=" >> $GITHUB_OUTPUT
           fi
 
-      - name: Fetch PR data
+          # Determine if we should merge (not a full refresh)
+          if [ "${{ github.event.inputs.full_refresh }}" = "true" ]; then
+            echo "merge_flags=" >> $GITHUB_OUTPUT
+          else
+            echo "merge_flags=--merge --snapshot" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Download existing data from cloud storage
+        if: env.STORAGE_PROVIDER != 'none' && github.event.inputs.full_refresh != 'true'
+        env:
+          AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
+        run: |
+          python src/upload_data.py \
+            --provider "${{ env.STORAGE_PROVIDER }}" \
+            --download \
+            --file data/pull_requests.csv
+
+      - name: Fetch and merge PR data
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN_PAT }}
         run: |
@@ -85,7 +131,20 @@ jobs:
             --owner "${{ steps.params.outputs.owner }}" \
             ${{ steps.params.outputs.start_date }} \
             ${{ steps.params.outputs.end_date }} \
+            ${{ steps.params.outputs.merge_flags }} \
             --output data/pull_requests.csv
+
+      - name: Upload to cloud storage
+        if: env.STORAGE_PROVIDER != 'none'
+        env:
+          AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
+        run: |
+          python src/upload_data.py \
+            --provider "${{ env.STORAGE_PROVIDER }}" \
+            --file data/pull_requests.csv
 
       - name: Upload CSV as artifact
         uses: actions/upload-artifact@v4
@@ -93,20 +152,3 @@ jobs:
           name: pr-data-${{ github.run_id }}
           path: data/pull_requests.csv
           retention-days: 90
-
-      # ----------------------------------------------------------------
-      # Optional: Upload to Azure Blob Storage
-      # Uncomment the step below and add AZURE_STORAGE_CONNECTION_STRING
-      # to your repository secrets.
-      # ----------------------------------------------------------------
-      # - name: Upload to Azure Blob Storage
-      #   if: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING != '' }}
-      #   uses: azure/cli@v2
-      #   with:
-      #     inlineScript: |
-      #       az storage blob upload \
-      #         --connection-string "${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
-      #         --container-name "pr-dashboard" \
-      #         --file data/pull_requests.csv \
-      #         --name "pull_requests.csv" \
-      #         --overwrite true
