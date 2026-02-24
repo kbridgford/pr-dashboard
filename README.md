@@ -183,14 +183,29 @@ Upload the CSV to a SharePoint document library manually or via Power Automate. 
 | `pr_number` | Integer | PR number |
 | `repository` | Text | Repository name (org/repo) |
 | `title` | Text | PR title |
+| `author` | Text | GitHub login of PR author |
 | `created_at` | DateTime | PR creation timestamp (ISO 8601) |
 | `merged_at` | DateTime | PR merge timestamp (nullable) |
 | `closed_at` | DateTime | PR close timestamp (nullable) |
+| `state` | Text | `MERGED` or `CLOSED` |
+| `is_draft` | Boolean | `True` if PR was a draft |
 | `days_open` | Decimal | Days PR was open |
 | `has_copilot_review` | Boolean | `True` if CCR was used |
 | `month_year` | Text | YYYY-MM format for grouping |
 | `reviewer_count` | Integer | Total number of reviewers |
 | `copilot_review_count` | Integer | Number of Copilot reviews |
+| `reviewers` | Text | Semicolon-separated human reviewer logins |
+| `merged_by` | Text | GitHub login of who merged the PR |
+| `additions` | Integer | Lines added |
+| `deletions` | Integer | Lines deleted |
+| `changed_files` | Integer | Number of files changed |
+| `commit_count` | Integer | Number of commits in the PR |
+| `comment_count` | Integer | Number of discussion comments |
+| `review_decision` | Text | `APPROVED`, `CHANGES_REQUESTED`, or empty |
+| `labels` | Text | Comma-separated label names |
+| `base_branch` | Text | Target branch (e.g., main) |
+| `head_branch` | Text | Source branch name |
+| `first_response_hours` | Decimal | Hours from PR open to first review |
 
 ---
 

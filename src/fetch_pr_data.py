@@ -80,8 +80,33 @@ query SearchPullRequests($query: String!, $cursor: String) {
         createdAt
         mergedAt
         closedAt
+        state
+        isDraft
+        additions
+        deletions
+        changedFiles
+        baseRefName
+        headRefName
+        reviewDecision
+        author {
+          login
+        }
+        mergedBy {
+          login
+        }
         repository {
           nameWithOwner
+        }
+        commits {
+          totalCount
+        }
+        comments {
+          totalCount
+        }
+        labels(first: 10) {
+          nodes {
+            name
+          }
         }
         reviews(first: 50) {
           nodes {
@@ -512,19 +537,60 @@ def process_pull_requests(prs: List[Dict]) -> List[Dict[str, Any]]:
         created = datetime.fromisoformat(pr["createdAt"].replace("Z", "+00:00"))
         month_year = created.strftime("%Y-%m")
 
+        # Extract human reviewers (exclude bots/copilot)
+        human_reviewers = list(set(
+            r["author"]["login"] for r in reviews
+            if r.get("author") and r["author"].get("login")
+            and "copilot" not in r["author"]["login"].lower()
+            and "[bot]" not in r["author"]["login"].lower()
+        ))
+
+        # Calculate first response time (hours from PR open to first review)
+        first_response_hours = None
+        if reviews:
+            review_times = [
+                datetime.fromisoformat(r["submittedAt"].replace("Z", "+00:00"))
+                for r in reviews if r.get("submittedAt")
+            ]
+            if review_times:
+                earliest_review = min(review_times)
+                first_response_hours = round(
+                    (earliest_review - created).total_seconds() / 3600, 2
+                )
+
+        # Extract labels as comma-separated string
+        labels = ", ".join(
+            l["name"] for l in pr.get("labels", {}).get("nodes", [])
+        )
+
         # Build the output record
         record = {
             "pr_number": pr["number"],
             "repository": repo_name,
             "title": pr["title"],
+            "author": pr.get("author", {}).get("login", "") if pr.get("author") else "",
             "created_at": pr["createdAt"],
             "merged_at": pr.get("mergedAt", ""),
             "closed_at": pr.get("closedAt", ""),
-            "days_open": round(days, 2),  # Round to 2 decimal places
+            "state": pr.get("state", ""),
+            "is_draft": pr.get("isDraft", False),
+            "days_open": round(days, 2),
             "has_copilot_review": has_ccr,
             "month_year": month_year,
             "reviewer_count": len(reviews),
-            "copilot_review_count": copilot_count
+            "copilot_review_count": copilot_count,
+            "reviewers": "; ".join(human_reviewers),
+            "merged_by": pr.get("mergedBy", {}).get("login", "") if pr.get("mergedBy") else "",
+            "additions": pr.get("additions", 0),
+            "deletions": pr.get("deletions", 0),
+            "changed_files": pr.get("changedFiles", 0),
+            "commit_count": pr.get("commits", {}).get("totalCount", 0),
+            "comment_count": pr.get("comments", {}).get("totalCount", 0),
+            "review_decision": pr.get("reviewDecision", "") or "",
+            "labels": labels,
+            "base_branch": pr.get("baseRefName", ""),
+            "head_branch": pr.get("headRefName", ""),
+            "first_response_hours": first_response_hours if first_response_hours is not None else ""
         }
 
         processed.append(record)
@@ -540,18 +606,8 @@ def export_to_csv(data: List[Dict[str, Any]], output_path: str) -> None:
     """
     Write processed PR data to CSV file
 
-    Creates a CSV with the following columns:
-    - pr_number: PR identifier
-    - repository: Full repo name (owner/repo)
-    - title: PR title
-    - created_at: When PR was created (ISO 8601)
-    - merged_at: When PR was merged (if applicable)
-    - closed_at: When PR was closed (if applicable)
-    - days_open: How long the PR was open
-    - has_copilot_review: True if Copilot Code Review was used
-    - month_year: Year-month for grouping (YYYY-MM)
-    - reviewer_count: Total number of reviewers
-    - copilot_review_count: Number of Copilot reviews
+    Creates a CSV with columns for PR metadata, timing, review info,
+    size metrics, and Copilot Code Review detection.
 
     Args:
         data: List of processed PR records
@@ -569,14 +625,29 @@ def export_to_csv(data: List[Dict[str, Any]], output_path: str) -> None:
         "pr_number",
         "repository",
         "title",
+        "author",
         "created_at",
         "merged_at",
         "closed_at",
+        "state",
+        "is_draft",
         "days_open",
         "has_copilot_review",
         "month_year",
         "reviewer_count",
-        "copilot_review_count"
+        "copilot_review_count",
+        "reviewers",
+        "merged_by",
+        "additions",
+        "deletions",
+        "changed_files",
+        "commit_count",
+        "comment_count",
+        "review_decision",
+        "labels",
+        "base_branch",
+        "head_branch",
+        "first_response_hours"
     ]
 
     # Write the CSV file
