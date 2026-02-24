@@ -137,11 +137,24 @@ def _pbi_literal(value: str) -> dict:
 # ============================================================================
 
 def _content_types_xml() -> str:
+    """Build [Content_Types].xml with OPC Override entries for all parts.
+
+    .pbit uses the Open Packaging Convention (OPC). Parts without file
+    extensions (Version, DataModelSchema, etc.) must be listed as explicit
+    <Override> entries — <Default> rules only match by extension.
+    """
     return (
         '<?xml version="1.0" encoding="utf-8"?>'
         '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
         '<Default Extension="json" ContentType="application/json" />'
         '<Default Extension="xml" ContentType="application/xml" />'
+        '<Override PartName="/Version" ContentType="" />'
+        '<Override PartName="/DataModelSchema" ContentType="" />'
+        '<Override PartName="/DiagramLayout" ContentType="" />'
+        '<Override PartName="/Report/Layout" ContentType="" />'
+        '<Override PartName="/Settings" ContentType="" />'
+        '<Override PartName="/Metadata" ContentType="" />'
+        '<Override PartName="/Connections" ContentType="" />'
         "</Types>"
     )
 
