@@ -668,22 +668,23 @@ def generate_pbit(output_path: str, variant: str = "full") -> None:
         layout = json.dumps(_report_layout(variant), ensure_ascii=False)
         zf.writestr("Report/Layout", _utf16le(layout))
 
-        # Settings — UTF-8 (PBI reads these via standard JSON deserializer)
-        zf.writestr("Settings", json.dumps({}).encode("utf-8"))
+        # Settings — UTF-16 LE (no BOM)
+        zf.writestr("Settings", _utf16le(json.dumps({})))
 
-        # Metadata — UTF-8
+        # Metadata — UTF-16 LE (no BOM)
         metadata = json.dumps({"version": "1.0", "type": 2})
-        zf.writestr("Metadata", metadata.encode("utf-8"))
+        zf.writestr("Metadata", _utf16le(metadata))
 
-        # DiagramLayout — UTF-8
+        # DiagramLayout — UTF-16 LE (no BOM)
         diagram = json.dumps({
             "version": "1.0",
             "pages": [],
             "scrollPosition": {"x": 0, "y": 0},
         })
-        zf.writestr("DiagramLayout", diagram.encode("utf-8"))
+        zf.writestr("DiagramLayout", _utf16le(diagram))
 
-        # Connections — UTF-8
+        # Connections — UTF-8 (PBI reads via ConnectionsSettingsUtils
+        # which uses a standard JSON deserializer expecting UTF-8)
         conns = json.dumps({"Version": 1, "Connections": []})
         zf.writestr("Connections", conns.encode("utf-8"))
 
