@@ -11,9 +11,9 @@
 #
 # The release includes:
 #   - src/ (Python scripts)
-#   - powerbi/ (Power BI setup guide)
+#   - powerbi/ (Power BI setup guide + generated .pbit template)
 #   - data/sample.csv (sample data for previewing)
-#   - requirements.txt, .env.example, README.md, COPILOT_PROMPT.md
+#   - requirements.txt, .env.example, README.md
 #   - .github/workflows/ (automation workflows)
 # ============================================================================
 
@@ -55,6 +55,14 @@ jobs:
           echo "tag=$VERSION" >> $GITHUB_OUTPUT
           echo "Release version: $VERSION"
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Generate Power BI template
+        run: python powerbi/generate_template.py
+
       - name: Create release package
         run: |
           VERSION="${{ steps.version.outputs.tag }}"
@@ -68,7 +76,6 @@ jobs:
             requirements.txt \
             .env.example \
             README.md \
-            COPILOT_PROMPT.md \
             -x "*.pyc" "__pycache__/*" ".venv/*" "data/pull_requests.csv" "data/snapshots/*"
 
           echo "archive=$ARCHIVE" >> $GITHUB_ENV
@@ -87,6 +94,7 @@ jobs:
             ### What's included
             - `src/fetch_pr_data.py` — Data collection script (GraphQL search API)
             - `src/upload_data.py` — Cloud storage upload/download (Azure Blob, S3)
+            - `powerbi/dashboard.pbit` — Pre-built Power BI template (open in Power BI Desktop)
             - `powerbi/SETUP_GUIDE.md` — Power BI dashboard build guide
             - `data/sample.csv` — Sample data for previewing
             - `.github/workflows/` — Automated refresh workflows

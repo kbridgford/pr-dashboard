@@ -36,6 +36,7 @@ data/*.xlsx
 
 # Power BI
 *.pbix
+*.pbit
 
 # IDE
 .vscode/
