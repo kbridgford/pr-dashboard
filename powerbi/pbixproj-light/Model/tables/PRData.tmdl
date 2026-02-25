@@ -1,0 +1,307 @@
+table PRData
+	lineageTag: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+
+	column pr_number
+		dataType: int64
+		formatString: 0
+		lineageTag: 01000000-0000-0000-0000-000000000001
+		summarizeBy: none
+		sourceColumn: pr_number
+
+	column repository
+		dataType: string
+		lineageTag: 01000000-0000-0000-0000-000000000002
+		summarizeBy: none
+		sourceColumn: repository
+
+	column title
+		dataType: string
+		lineageTag: 01000000-0000-0000-0000-000000000003
+		summarizeBy: none
+		sourceColumn: title
+
+	column author
+		dataType: string
+		lineageTag: 01000000-0000-0000-0000-000000000004
+		summarizeBy: none
+		sourceColumn: author
+
+	column created_at
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 01000000-0000-0000-0000-000000000005
+		summarizeBy: none
+		sourceColumn: created_at
+
+	column merged_at
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 01000000-0000-0000-0000-000000000006
+		summarizeBy: none
+		sourceColumn: merged_at
+
+	column closed_at
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 01000000-0000-0000-0000-000000000007
+		summarizeBy: none
+		sourceColumn: closed_at
+
+	column state
+		dataType: string
+		lineageTag: 01000000-0000-0000-0000-000000000008
+		summarizeBy: none
+		sourceColumn: state
+
+	column is_draft
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 01000000-0000-0000-0000-000000000009
+		summarizeBy: none
+		sourceColumn: is_draft
+
+	column days_open
+		dataType: double
+		formatString: 0.00
+		lineageTag: 01000000-0000-0000-0000-000000000010
+		summarizeBy: sum
+		sourceColumn: days_open
+
+	column has_copilot_review
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 01000000-0000-0000-0000-000000000011
+		summarizeBy: none
+		sourceColumn: has_copilot_review
+
+	column month_year
+		dataType: string
+		lineageTag: 01000000-0000-0000-0000-000000000012
+		summarizeBy: none
+		sourceColumn: month_year
+
+	column reviewer_count
+		dataType: int64
+		formatString: 0
+		lineageTag: 01000000-0000-0000-0000-000000000013
+		summarizeBy: sum
+		sourceColumn: reviewer_count
+
+	column copilot_review_count
+		dataType: int64
+		formatString: 0
+		lineageTag: 01000000-0000-0000-0000-000000000014
+		summarizeBy: sum
+		sourceColumn: copilot_review_count
+
+	column reviewers
+		dataType: string
+		lineageTag: 01000000-0000-0000-0000-000000000015
+		summarizeBy: none
+		sourceColumn: reviewers
+
+	column merged_by
+		dataType: string
+		lineageTag: 01000000-0000-0000-0000-000000000016
+		summarizeBy: none
+		sourceColumn: merged_by
+
+	column additions
+		dataType: int64
+		formatString: 0
+		lineageTag: 01000000-0000-0000-0000-000000000017
+		summarizeBy: sum
+		sourceColumn: additions
+
+	column deletions
+		dataType: int64
+		formatString: 0
+		lineageTag: 01000000-0000-0000-0000-000000000018
+		summarizeBy: sum
+		sourceColumn: deletions
+
+	column changed_files
+		dataType: int64
+		formatString: 0
+		lineageTag: 01000000-0000-0000-0000-000000000019
+		summarizeBy: sum
+		sourceColumn: changed_files
+
+	column commit_count
+		dataType: int64
+		formatString: 0
+		lineageTag: 01000000-0000-0000-0000-000000000020
+		summarizeBy: sum
+		sourceColumn: commit_count
+
+	column comment_count
+		dataType: int64
+		formatString: 0
+		lineageTag: 01000000-0000-0000-0000-000000000021
+		summarizeBy: sum
+		sourceColumn: comment_count
+
+	column review_decision
+		dataType: string
+		lineageTag: 01000000-0000-0000-0000-000000000022
+		summarizeBy: none
+		sourceColumn: review_decision
+
+	column labels
+		dataType: string
+		lineageTag: 01000000-0000-0000-0000-000000000023
+		summarizeBy: none
+		sourceColumn: labels
+
+	column base_branch
+		dataType: string
+		lineageTag: 01000000-0000-0000-0000-000000000024
+		summarizeBy: none
+		sourceColumn: base_branch
+
+	column head_branch
+		dataType: string
+		lineageTag: 01000000-0000-0000-0000-000000000025
+		summarizeBy: none
+		sourceColumn: head_branch
+
+	column first_response_hours
+		dataType: double
+		formatString: 0.00
+		lineageTag: 01000000-0000-0000-0000-000000000026
+		summarizeBy: average
+		sourceColumn: first_response_hours
+
+	measure 'Total PRs' = COUNTROWS('PRData')
+		formatString: #,##0
+		lineageTag: 02000000-0000-0000-0000-000000000001
+
+	measure 'Merged PRs' = CALCULATE(COUNTROWS('PRData'), 'PRData'[state] = "MERGED")
+		formatString: #,##0
+		lineageTag: 02000000-0000-0000-0000-000000000002
+
+	measure 'PRs with Copilot Review' = CALCULATE(COUNTROWS('PRData'), 'PRData'[has_copilot_review] = TRUE())
+		formatString: #,##0
+		lineageTag: 02000000-0000-0000-0000-000000000003
+
+	measure 'CCR Adoption %' = ```
+			DIVIDE(
+			    CALCULATE(COUNTROWS('PRData'), 'PRData'[has_copilot_review] = TRUE()),
+			    COUNTROWS('PRData'),
+			    0
+			) * 100
+			```
+		formatString: 0.0"%"
+		lineageTag: 02000000-0000-0000-0000-000000000004
+
+	measure 'Avg Days Open' = AVERAGE('PRData'[days_open])
+		formatString: 0.0
+		lineageTag: 02000000-0000-0000-0000-000000000005
+
+	measure 'Avg Days Open (With CCR)' = ```
+			CALCULATE(
+			    AVERAGE('PRData'[days_open]),
+			    'PRData'[has_copilot_review] = TRUE()
+			)
+			```
+		formatString: 0.0
+		lineageTag: 02000000-0000-0000-0000-000000000006
+
+	measure 'Avg Days Open (Without CCR)' = ```
+			CALCULATE(
+			    AVERAGE('PRData'[days_open]),
+			    'PRData'[has_copilot_review] = FALSE()
+			)
+			```
+		formatString: 0.0
+		lineageTag: 02000000-0000-0000-0000-000000000007
+
+	measure 'Days Saved per PR' = ```
+			VAR WithoutCCR = CALCULATE(AVERAGE('PRData'[days_open]), 'PRData'[has_copilot_review] = FALSE())
+			VAR WithCCR = CALCULATE(AVERAGE('PRData'[days_open]), 'PRData'[has_copilot_review] = TRUE())
+			RETURN WithoutCCR - WithCCR
+			```
+		formatString: 0.0
+		lineageTag: 02000000-0000-0000-0000-000000000008
+
+	measure 'Avg First Response Hours' = AVERAGE('PRData'[first_response_hours])
+		formatString: 0.0
+		lineageTag: 02000000-0000-0000-0000-000000000009
+
+	measure 'Avg First Response Hours (With CCR)' = ```
+			CALCULATE(
+			    AVERAGE('PRData'[first_response_hours]),
+			    'PRData'[has_copilot_review] = TRUE()
+			)
+			```
+		formatString: 0.0
+		lineageTag: 02000000-0000-0000-0000-000000000010
+
+	measure 'Avg First Response Hours (Without CCR)' = ```
+			CALCULATE(
+			    AVERAGE('PRData'[first_response_hours]),
+			    'PRData'[has_copilot_review] = FALSE()
+			)
+			```
+		formatString: 0.0
+		lineageTag: 02000000-0000-0000-0000-000000000011
+
+	measure 'Total Lines Changed' = SUM('PRData'[additions]) + SUM('PRData'[deletions])
+		formatString: #,##0
+		lineageTag: 02000000-0000-0000-0000-000000000012
+
+	measure 'Avg Reviews per PR' = AVERAGE('PRData'[reviewer_count])
+		formatString: 0.0
+		lineageTag: 02000000-0000-0000-0000-000000000013
+
+	measure 'Merge Rate %' = ```
+			DIVIDE(
+			    CALCULATE(COUNTROWS('PRData'), 'PRData'[state] = "MERGED"),
+			    COUNTROWS('PRData'),
+			    0
+			) * 100
+			```
+		formatString: 0.0"%"
+		lineageTag: 02000000-0000-0000-0000-000000000014
+
+	partition PRData = m
+		mode: import
+		source
+			expression = ```
+					let
+					    Source = Csv.Document(
+					        File.Contents(CsvFilePath),
+					        [Delimiter=",", Columns=26, Encoding=TextEncoding.Utf8, QuoteStyle=QuoteStyle.Csv]
+					    ),
+					    PromotedHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),
+					    TypedColumns = Table.TransformColumnTypes(PromotedHeaders, {
+					        {"pr_number", Int64.Type},
+					        {"repository", type text},
+					        {"title", type text},
+					        {"author", type text},
+					        {"created_at", type datetime},
+					        {"merged_at", type datetime},
+					        {"closed_at", type datetime},
+					        {"state", type text},
+					        {"is_draft", type logical},
+					        {"days_open", type number},
+					        {"has_copilot_review", type logical},
+					        {"month_year", type text},
+					        {"reviewer_count", Int64.Type},
+					        {"copilot_review_count", Int64.Type},
+					        {"reviewers", type text},
+					        {"merged_by", type text},
+					        {"additions", Int64.Type},
+					        {"deletions", Int64.Type},
+					        {"changed_files", Int64.Type},
+					        {"commit_count", Int64.Type},
+					        {"comment_count", Int64.Type},
+					        {"review_decision", type text},
+					        {"labels", type text},
+					        {"base_branch", type text},
+					        {"head_branch", type text},
+					        {"first_response_hours", type number}
+					    })
+					in
+					    TypedColumns
+					```

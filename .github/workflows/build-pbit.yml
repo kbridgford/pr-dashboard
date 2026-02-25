@@ -1,0 +1,76 @@
+# ============================================================================
+# Build Power BI Templates
+# ============================================================================
+# Compiles PbixProj source folders into .pbit template files using pbi-tools.
+#
+# Can be called from the release workflow or run standalone.
+# Produces two variants:
+#   - dashboard-full.pbit  (3 pages: Overview, Copilot Impact, PR Details)
+#   - dashboard-light.pbit (1 page: Key metrics + comparison charts)
+# ============================================================================
+
+name: Build PBIT
+
+on:
+  workflow_call:
+    # Called by release.yml — artifacts are uploaded for the caller to download
+  workflow_dispatch:
+    # Manual trigger for testing
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Generate report pages
+        run: python3 powerbi/generate_report.py
+
+      - name: Compile full dashboard
+        run: |
+          docker run --rm \
+            -v "$PWD":/workspace \
+            -w /workspace \
+            ghcr.io/pbi-tools/pbi-tools-core:latest \
+            /app/pbi-tools/pbi-tools.core compile \
+              -folder powerbi/pbixproj-full \
+              -format PBIT \
+              -outPath /workspace/powerbi/dashboard-full.pbit \
+              -overwrite
+
+      - name: Compile light dashboard
+        run: |
+          docker run --rm \
+            -v "$PWD":/workspace \
+            -w /workspace \
+            ghcr.io/pbi-tools/pbi-tools-core:latest \
+            /app/pbi-tools/pbi-tools.core compile \
+              -folder powerbi/pbixproj-light \
+              -format PBIT \
+              -outPath /workspace/powerbi/dashboard-light.pbit \
+              -overwrite
+
+      - name: Verify outputs
+        run: |
+          echo "=== Full dashboard ==="
+          ls -lh powerbi/dashboard-full.pbit
+          file powerbi/dashboard-full.pbit
+
+          echo "=== Light dashboard ==="
+          ls -lh powerbi/dashboard-light.pbit
+          file powerbi/dashboard-light.pbit
+
+      - name: Upload PBIT artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pbit-templates
+          path: |
+            powerbi/dashboard-full.pbit
+            powerbi/dashboard-light.pbit
+          retention-days: 7

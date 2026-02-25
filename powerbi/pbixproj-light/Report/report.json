@@ -1,0 +1,20 @@
+{
+  "id": 0,
+  "resourcePackages": [
+    {
+      "resourcePackage": {
+        "name": "SharedResources",
+        "type": 2,
+        "items": [
+          {
+            "type": 202,
+            "path": "BaseThemes/CY25SU12.json",
+            "name": "CY25SU12"
+          }
+        ],
+        "disabled": false
+      }
+    }
+  ],
+  "layoutOptimization": 0
+}

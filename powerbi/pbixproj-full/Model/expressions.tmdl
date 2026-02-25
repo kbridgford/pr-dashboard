@@ -1,0 +1,6 @@
+expression CsvFilePath =
+		"C:\data\pr_data.csv" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
+	lineageTag: 03000000-0000-0000-0000-000000000001
+
+	annotation PBI_NavigatorLookup = WebItem
+	annotation PBI_ResultType = Text
