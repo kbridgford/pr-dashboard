@@ -1,12 +1,55 @@
 # Power BI Dashboard Setup Guide
 
-This guide walks you through creating the Copilot Code Review dashboard in Power BI Desktop. The finished dashboard will have two bar charts and KPI cards, matching the reference template.
+This guide covers two approaches for creating the Copilot Code Review Impact
+dashboard in Power BI Desktop:
 
-## Quick Start
+1. **Use pre-built templates** (recommended) — open a `.pbit` file and point
+   it at your CSV.
+2. **Build manually** — connect to CSV and construct visuals from scratch.
 
-1. Open Power BI Desktop
-2. **Get Data** → **Text/CSV** → select `data/pull_requests.csv` (or `data/sample.csv` to preview)
-3. Follow the steps below to transform the data & build visuals
+---
+
+## Option A: Use a Pre-Built Template (Recommended)
+
+### 1. Get the template
+
+Download from the
+[latest release](https://github.com/kbridgford/pr-dashboard/releases), or
+build locally (see the
+[build skill](../.github/skills/build-pbi-reports/SKILL.md)):
+
+| Template | File | Description |
+|----------|------|-------------|
+| **Full** | `dashboard-full.pbit` | 3 pages — Overview (cards + charts + table), Copilot Impact (comparison charts + trend), PR Details (slicers + detail table) |
+| **Light** | `dashboard-light.pbit` | 1 page — 5 KPI cards + 4 charts (comparison + trend + volume) |
+
+### 2. Open in Power BI Desktop
+
+1. Double-click the `.pbit` file (or **File → Import → Power BI template**).
+2. When prompted for `CsvFilePath`, enter the full path to your CSV:
+   ```
+   C:\Users\you\code\pr-dashboard\data\pull_requests.csv
+   ```
+3. Click **Load**. All visuals populate automatically.
+
+### 3. Refresh data
+
+After running `fetch_pr_data.py` again:
+
+1. **Home → Refresh** in Power BI Desktop, or
+2. Re-open the template and re-enter the CSV path.
+
+### 4. Connect to cloud data (optional)
+
+See [Option B, Step 4](#step-4-connect-to-cloud-data-optional) below for
+Azure Blob, SharePoint, and S3 connection instructions.
+
+---
+
+## Option B: Build the Dashboard Manually
+
+Use this approach if you want full control over layout, visuals, and DAX, or
+if you want to extend the dashboard beyond what the templates provide.
 
 ---
 

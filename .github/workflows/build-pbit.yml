@@ -19,7 +19,6 @@ on:
 
 permissions:
   contents: read
-  packages: read
 
 jobs:
   build:
@@ -28,6 +27,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
       - name: Generate report pages
         run: python3 powerbi/generate_report.py
@@ -61,10 +65,14 @@ jobs:
           echo "=== Full dashboard ==="
           ls -lh powerbi/dashboard-full.pbit
           file powerbi/dashboard-full.pbit
+          unzip -t powerbi/dashboard-full.pbit > /dev/null
 
           echo "=== Light dashboard ==="
           ls -lh powerbi/dashboard-light.pbit
           file powerbi/dashboard-light.pbit
+          unzip -t powerbi/dashboard-light.pbit > /dev/null
+
+          echo "Both templates are valid ZIP archives."
 
       - name: Upload PBIT artifacts
         uses: actions/upload-artifact@v4

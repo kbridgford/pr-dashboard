@@ -82,29 +82,35 @@ jobs:
 
       - name: Determine parameters
         id: params
+        env:
+          INPUT_OWNER: ${{ github.event.inputs.owner }}
+          INPUT_START_DATE: ${{ github.event.inputs.start_date }}
+          INPUT_END_DATE: ${{ github.event.inputs.end_date }}
+          INPUT_FULL_REFRESH: ${{ github.event.inputs.full_refresh }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           # Use workflow_dispatch inputs if available, otherwise defaults
-          OWNER="${{ github.event.inputs.owner || env.DEFAULT_OWNER }}"
+          OWNER="${INPUT_OWNER:-$DEFAULT_OWNER}"
           echo "owner=$OWNER" >> $GITHUB_OUTPUT
 
           # For scheduled runs, default to last 30 days for incremental fetch
-          if [ -n "${{ github.event.inputs.start_date }}" ]; then
-            echo "start_date=--start-date ${{ github.event.inputs.start_date }}" >> $GITHUB_OUTPUT
-          elif [ "${{ github.event_name }}" = "schedule" ]; then
+          if [ -n "$INPUT_START_DATE" ]; then
+            echo "start_date=--start-date $INPUT_START_DATE" >> $GITHUB_OUTPUT
+          elif [ "$EVENT_NAME" = "schedule" ]; then
             START=$(date -d '-30 days' '+%Y-%m-%d' 2>/dev/null || date -v-30d '+%Y-%m-%d')
             echo "start_date=--start-date $START" >> $GITHUB_OUTPUT
           else
             echo "start_date=" >> $GITHUB_OUTPUT
           fi
 
-          if [ -n "${{ github.event.inputs.end_date }}" ]; then
-            echo "end_date=--end-date ${{ github.event.inputs.end_date }}" >> $GITHUB_OUTPUT
+          if [ -n "$INPUT_END_DATE" ]; then
+            echo "end_date=--end-date $INPUT_END_DATE" >> $GITHUB_OUTPUT
           else
             echo "end_date=" >> $GITHUB_OUTPUT
           fi
 
           # Determine if we should merge (not a full refresh)
-          if [ "${{ github.event.inputs.full_refresh }}" = "true" ]; then
+          if [ "$INPUT_FULL_REFRESH" = "true" ]; then
             echo "merge_flags=" >> $GITHUB_OUTPUT
           else
             echo "merge_flags=--merge --snapshot" >> $GITHUB_OUTPUT
@@ -119,7 +125,7 @@ jobs:
           AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
         run: |
           python src/upload_data.py \
-            --provider "${{ env.STORAGE_PROVIDER }}" \
+            --provider "$STORAGE_PROVIDER" \
             --download \
             --file data/pull_requests.csv
 
@@ -143,7 +149,7 @@ jobs:
           AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
         run: |
           python src/upload_data.py \
-            --provider "${{ env.STORAGE_PROVIDER }}" \
+            --provider "$STORAGE_PROVIDER" \
             --file data/pull_requests.csv
 
       - name: Upload CSV as artifact

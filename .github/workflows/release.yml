@@ -11,10 +11,11 @@
 #
 # The release includes:
 #   - src/ (Python scripts)
-#   - powerbi/ (Power BI setup guide + generated .pbit template)
+#   - powerbi/ (Power BI setup guide + .pbit templates)
 #   - data/sample.csv (sample data for previewing)
+#   - docs/ (metrics guide)
 #   - requirements.txt, .env.example, README.md
-#   - .github/workflows/ (automation workflows)
+#   - .github/workflows/refresh-data.yml (automated refresh)
 # ============================================================================
 
 name: Publish Release
@@ -53,9 +54,11 @@ jobs:
 
       - name: Determine version
         id: version
+        env:
+          INPUT_TAG: ${{ github.event.inputs.tag }}
         run: |
-          if [ -n "${{ github.event.inputs.tag }}" ]; then
-            VERSION="${{ github.event.inputs.tag }}"
+          if [ -n "$INPUT_TAG" ]; then
+            VERSION="$INPUT_TAG"
           else
             VERSION="${GITHUB_REF#refs/tags/}"
           fi
@@ -66,7 +69,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: pbit-templates
-          path: powerbi/
+          path: .
 
       - name: Create release package
         run: |
@@ -75,13 +78,16 @@ jobs:
 
           zip -r "$ARCHIVE" \
             src/ \
-            powerbi/ \
+            powerbi/POWER_BI_SETUP.md \
+            powerbi/dashboard-full.pbit \
+            powerbi/dashboard-light.pbit \
             data/sample.csv \
-            .github/workflows/ \
+            .github/workflows/refresh-data.yml \
+            docs/ \
             requirements.txt \
             .env.example \
             README.md \
-            -x "*.pyc" "__pycache__/*" ".venv/*" "data/pull_requests.csv" "data/snapshots/*"
+            -x "*.pyc" "__pycache__/*"
 
           echo "archive=$ARCHIVE" >> $GITHUB_ENV
           echo "Created: $ARCHIVE ($(du -h "$ARCHIVE" | cut -f1))"
@@ -99,11 +105,11 @@ jobs:
             ### What's included
             - `src/fetch_pr_data.py` — Data collection script (GraphQL search API)
             - `src/upload_data.py` — Cloud storage upload/download (Azure Blob, S3)
-            - `powerbi/dashboard-full.pbit` — Full dashboard (3 pages, 23 visuals)
-            - `powerbi/dashboard-light.pbit` — Light dashboard (1 page, key metrics)
-            - `powerbi/SETUP_GUIDE.md` — Power BI dashboard build guide
+            - `powerbi/dashboard-full.pbit` — Full dashboard (3 pages: Overview, Copilot Impact, PR Details)
+            - `powerbi/dashboard-light.pbit` — Light dashboard (1 page: KPI cards + charts)
+            - `powerbi/POWER_BI_SETUP.md` — Power BI dashboard build guide
             - `data/sample.csv` — Sample data for previewing
-            - `.github/workflows/` — Automated refresh workflows
+            - `.github/workflows/refresh-data.yml` — Automated refresh workflow
             - `requirements.txt`, `.env.example`, `README.md`
           files: |
             ${{ env.archive }}

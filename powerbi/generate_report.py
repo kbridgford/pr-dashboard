@@ -638,26 +638,34 @@ def make_light_dashboard_page():
     chart_w, chart_h = 600, 280
     chart_y = 140
 
-    # Chart 1: Avg Days Open comparison (with vs without CCR)
+    # Chart 1: Avg Days Open comparison (with vs without CCR) by month
     _add("clusteredColumnChart", "Avg Days Open: With vs Without Copilot Review",
          {"x": 20, "y": chart_y, "width": chart_w, "height": chart_h},
-         {"Y": [
-             {"queryRef": "PRData.Avg Days Open (With CCR)"},
-             {"queryRef": "PRData.Avg Days Open (Without CCR)"},
-         ]},
+         {
+             "Category": [{"queryRef": "PRData.month_year", "active": True}],
+             "Y": [
+                 {"queryRef": "PRData.Avg Days Open (With CCR)"},
+                 {"queryRef": "PRData.Avg Days Open (Without CCR)"},
+             ],
+         },
          [
+             _select_column("month_year", "PRData.month_year"),
              _select_measure("Avg Days Open (With CCR)", "PRData.Avg Days Open (With CCR)"),
              _select_measure("Avg Days Open (Without CCR)", "PRData.Avg Days Open (Without CCR)"),
          ])
 
-    # Chart 2: Avg First Response Hours comparison
+    # Chart 2: Avg First Response Hours comparison by month
     _add("clusteredColumnChart", "Avg First Response Hours: With vs Without CCR",
          {"x": 650, "y": chart_y, "width": chart_w, "height": chart_h},
-         {"Y": [
-             {"queryRef": "PRData.Avg First Response Hours (With CCR)"},
-             {"queryRef": "PRData.Avg First Response Hours (Without CCR)"},
-         ]},
+         {
+             "Category": [{"queryRef": "PRData.month_year", "active": True}],
+             "Y": [
+                 {"queryRef": "PRData.Avg First Response Hours (With CCR)"},
+                 {"queryRef": "PRData.Avg First Response Hours (Without CCR)"},
+             ],
+         },
          [
+             _select_column("month_year", "PRData.month_year"),
              _select_measure("Avg First Response Hours (With CCR)", "PRData.Avg First Response Hours (With CCR)"),
              _select_measure("Avg First Response Hours (Without CCR)", "PRData.Avg First Response Hours (Without CCR)"),
          ])

@@ -46,8 +46,8 @@ python src/fetch_pr_data.py --owner your-org
 ### Prerequisites
 
 - Python 3.11+
-- GitHub Personal Access Token with `repo` scope
-- Power BI Desktop (for visualization)
+- GitHub Personal Access Token with `repo` scope (used by the Python scripts — not needed for Power BI)
+- Power BI Desktop (for visualization — no token required)
 
 ### Install Dependencies
 
@@ -65,6 +65,10 @@ pip install boto3               # AWS S3
 
 ### Configure GitHub Access
 
+The GitHub token is used **only by the Python scripts** (`src/fetch_pr_data.py`
+and `src/upload_data.py`) to query the GitHub API. Power BI reads from the
+generated CSV and does not need a token.
+
 ```bash
 cp .env.example .env
 ```
@@ -74,8 +78,15 @@ Edit `.env`:
 ```env
 GITHUB_TOKEN=ghp_your_token_here
 GITHUB_OWNER=your-org-or-username
-GITHUB_REPO=your-repo-name
+GITHUB_REPO=your-repo-name   # optional — default for --repo flag
 ```
+
+`GITHUB_REPO` is optional. It provides a default for the `--repo` CLI flag so
+you don't have to pass it every time. Most users fetch org-wide (`--owner`
+only) and don't need it.
+
+You can also set `GITHUB_TOKEN` as an environment variable instead of using
+`.env` — the scripts check both.
 
 **Get a token:** [github.com/settings/tokens](https://github.com/settings/tokens) → Generate new token (classic) → select `repo` scope.
 
@@ -151,13 +162,45 @@ python src/upload_data.py --provider azure --file data/pull_requests.csv
 
 See [Cloud Storage Setup](#cloud-storage) for configuration details.
 
-### Build the Power BI Dashboard
+### Use the Pre-Built Power BI Templates
 
-See [powerbi/SETUP_GUIDE.md](powerbi/SETUP_GUIDE.md) for step-by-step instructions including:
-- Data connection (local CSV, Azure Blob, SharePoint)
-- DAX measures for KPIs
-- Visual specifications (bar charts, cards, slicers)
-- Template export
+Download `dashboard-full.pbit` or `dashboard-light.pbit` from the
+[latest release](https://github.com/kbridgford/pr-dashboard/releases).
+Open in Power BI Desktop, point it at your CSV, and the dashboard is ready.
+
+| Template | Pages | Visuals |
+|----------|-------|---------|
+| **Full** | 3 (Overview, Copilot Impact, PR Details) | 6 cards, 4 charts, 1 donut, 2 tables, 3 slicers |
+| **Light** | 1 (Dashboard) | 5 cards, 4 charts |
+
+### Build Templates from Source
+
+The `.pbit` files are compiled from PbixProj source folders using
+[pbi-tools](https://pbi.tools) in Docker. See the
+[build skill](.github/skills/build-pbi-reports/SKILL.md) for the full
+procedure, or run:
+
+```bash
+python3 powerbi/generate_report.py
+
+docker run --rm --platform linux/amd64 \
+  -v "$PWD":/workspace -w /workspace \
+  ghcr.io/pbi-tools/pbi-tools-core:latest \
+  /app/pbi-tools/pbi-tools.core compile \
+    -folder powerbi/pbixproj-full \
+    -format PBIT \
+    -outPath /workspace/powerbi/dashboard-full.pbit \
+    -overwrite
+```
+
+CI also builds templates on every push — see
+[build-pbit.yml](.github/workflows/build-pbit.yml).
+
+### Customize the Dashboard
+
+See [powerbi/POWER_BI_SETUP.md](powerbi/POWER_BI_SETUP.md) for manual
+construction instructions including data connections, DAX measures, visual
+specifications, and cloud data source options.
 
 ---
 
@@ -271,8 +314,11 @@ For a detailed explanation of every metric, its business impact, interpretation 
 - Total repositories
 
 ### Colors
-- **Blue** (`#4F81BD`): With Copilot Code Review
-- **Red** (`#C0504D`): Without Copilot Code Review
+
+Charts use the default Power BI theme (`CY25SU12`) which auto-assigns colors
+from the palette. The first two series in comparison charts typically render as:
+- **Blue** (`#118DFF`): first series (e.g., With Copilot Code Review)
+- **Dark Blue** (`#12239E`): second series (e.g., Without Copilot Code Review)
 
 ---
 
@@ -306,16 +352,21 @@ Handled automatically — the script splits searches into monthly date ranges.
 ```
 pr-dashboard/
 ├── README.md                              # This file
+├── COPILOT_PROMPT.md                      # Original agent prompt
 ├── requirements.txt                       # Python dependencies
 ├── .env.example                           # Template for .env
 ├── .gitignore                             # Git ignore rules
-├── COPILOT_PROMPT.md                      # Original agent prompt
 │
 ├── docs/
 │   └── METRICS_INSIGHTS.md                # Metric definitions & analysis guide
 │
 ├── .github/
+│   ├── copilot-instructions.md            # Copilot custom instructions
+│   ├── skills/
+│   │   └── build-pbi-reports/SKILL.md     # Agent skill: compile .pbit templates
 │   └── workflows/
+│       ├── build-pbit.yml                 # CI: compile .pbit from PbixProj source
+│       ├── release.yml                    # CD: attach .pbit to GitHub Releases
 │       └── refresh-data.yml               # Weekly automated data refresh
 │
 ├── src/
@@ -327,8 +378,17 @@ pr-dashboard/
 │   └── sample.csv                         # Sample data for previewing
 │
 └── powerbi/
-    ├── SETUP_GUIDE.md                     # Power BI dashboard build guide
-    └── generate_template.py               # Generates .pbit templates (full & light)
+    ├── POWER_BI_SETUP.md                  # Power BI dashboard build guide
+    ├── generate_report.py                 # Generates Report section JSON for PbixProj
+    ├── blank_template.pbit                # Reference blank template from PBI Desktop
+    ├── pbixproj-full/                     # PbixProj source — full 3-page dashboard
+    │   ├── .pbixproj.json
+    │   ├── Version.txt
+    │   ├── Model/                         # TMDL data model (26 cols, 14 measures)
+    │   ├── Report/                        # Report layout & section visuals
+    │   └── StaticResources/               # Theme JSON
+    └── pbixproj-light/                    # PbixProj source — light 1-page dashboard
+        └── (same structure, single page)
 ```
 
 ## License

@@ -218,9 +218,13 @@ For any comparison, consider the sample size:
 
 ## Template Variants
 
-| Template | File | Visuals |
-|----------|------|---------|
-| **Full** | `dashboard-full.pbit` | 4 KPI cards + 2 column charts + 2 slicers |
-| **Light** | `dashboard-light.pbit` | 2 column charts only (larger, no cards or slicers) |
+| Template | File | Pages | Visuals |
+|----------|------|-------|---------|
+| **Full** | `dashboard-full.pbit` | 3 (Overview, Copilot Impact, PR Details) | 6 KPI cards, 2 clustered column charts, 1 donut chart, 1 line chart, 2 tables, 3 slicers |
+| **Light** | `dashboard-light.pbit` | 1 (Dashboard) | 5 KPI cards, 2 comparison column charts, 1 line chart, 1 volume column chart |
 
-Both templates include the complete data model, all DAX measures, and the calculated Review Type column. The Light template is ideal for quick presentations; the Full template provides interactive filtering and summary KPIs.
+Both templates include the complete TMDL data model (26 columns, 14 DAX
+measures) and connect to CSV via a `CsvFilePath` parameter. The Light template
+is ideal for quick presentations; the Full template provides interactive
+filtering, detailed Copilot impact analysis, and a per-PR detail table with
+slicers.
