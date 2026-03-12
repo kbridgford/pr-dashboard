@@ -113,8 +113,6 @@ jobs:
             - `requirements.txt`, `.env.example`, `README.md`
           files: |
             ${{ env.archive }}
-            powerbi/dashboard-full.pbit
-            powerbi/dashboard-light.pbit
           generate_release_notes: true
           draft: false
           prerelease: false
