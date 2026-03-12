@@ -691,14 +691,14 @@ def make_light_dashboard_page():
          {
              "Category": [{"queryRef": "PRData.month_year", "active": True}],
              "Y": [
-                 {"queryRef": "PRData.Total PRs"},
                  {"queryRef": "PRData.PRs with Copilot Review"},
+                 {"queryRef": "PRData.Total PRs"},
              ],
          },
          [
              _select_column("month_year", "PRData.month_year"),
-             _select_measure("Total PRs", "PRData.Total PRs"),
              _select_measure("PRs with Copilot Review", "PRData.PRs with Copilot Review"),
+             _select_measure("Total PRs", "PRData.Total PRs"),
          ])
 
     section["visualContainers"] = visuals
