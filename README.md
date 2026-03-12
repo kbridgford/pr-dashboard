@@ -4,6 +4,9 @@ Analyze pull request metrics comparing PRs with and without GitHub Copilot Code 
 
 Uses GitHub's GraphQL search API to query all PRs across an organization in a single search, automatically splitting into monthly date chunks for orgs with >1,000 PRs.
 
+<img width="3896" height="2196" alt="image" src="https://github.com/user-attachments/assets/13c22557-593b-47f9-bd33-28588d8f9252" />
+
+
 ## Architecture
 
 ```
